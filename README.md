@@ -1,6 +1,6 @@
-# ResearchAgent
+# NEXUS Research
 
-A multi-agent AI research assistant built with **LangGraph** and **Claude**. 
+A multi-agent AI research assistant built with **LangGraph** and **Groq (Llama-3)**. 
 Give it a research question — it autonomously plans, searches, scrapes, summarizes, 
 reflects, and writes a comprehensive report.
 
@@ -12,17 +12,17 @@ User query → Planner → Researcher → Scraper → Summarizer → Reflector �
 ```
 
 **Nodes:**
-- **Planner** — Claude breaks the query into 3–5 search sub-tasks
+- **Planner** — Llama-3 breaks the query into 3–5 search sub-tasks
 - **Researcher** — Tavily API searches for each sub-task (top 3 results each)
-- **Scraper** — httpx + BeautifulSoup extracts full text from each URL
-- **Summarizer** — Claude summarizes each document into key findings
-- **Reflector** — Claude evaluates whether research is complete; loops back if not
-- **Writer** — Claude synthesizes all summaries into a structured markdown report
+- **Scraper** — httpx + BeautifulSoup extracts full text from each URL, chunks it, and uses BM25 for RAG
+- **Summarizer** — Llama-3 summarizes each document into key findings
+- **Reflector** — Llama-3 evaluates whether research is complete; loops back if not
+- **Writer** — Llama-3 synthesizes all summaries into a structured markdown report
 
 ## Setup
 
 ### 1. Get API keys
-- **Anthropic**: https://console.anthropic.com → API Keys
+- **Groq**: https://console.groq.com → API Keys
 - **Tavily**: https://tavily.com → free tier (1000 searches/month)
 
 ### 2. Install Python dependencies
@@ -34,14 +34,11 @@ pip install -r requirements.txt
 ```
 
 ### 3. Set environment variables
-```bash
-cp .env.example .env
-# Edit .env and add your keys
-```
+Create a `.env` file in the root folder:
 
 `.env`:
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+GROQ_API_KEY=gsk_...
 TAVILY_API_KEY=tvly-...
 ```
 
@@ -60,8 +57,8 @@ npm run dev
 ```
 
 ### 6. Use it
-Open http://localhost:5173, type a research question, click "Run research agent →".
-Watch each agent node activate in real time. The final report appears on the right.
+Open http://localhost:5173, type a research question, click "Launch NEXUS".
+Watch each agent node activate in real time. The final report is streamed live on the right.
 
 ## Running from terminal (no UI)
 ```python
@@ -87,7 +84,7 @@ print(result["report"])
 **Backend (Railway)**:
 1. Push to GitHub
 2. New project on railway.app → Deploy from GitHub
-3. Set env vars: `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`
+3. Set env vars: `GROQ_API_KEY`, `TAVILY_API_KEY`
 4. Start command: `python -m api.main`
 
 **Frontend (Vercel)**:
@@ -100,10 +97,10 @@ print(result["report"])
 research-agent/
 ├── agent/
 │   ├── nodes/
-│   │   ├── planner.py      # Claude decomposes query
+│   │   ├── planner.py      # Llama-3 decomposes query
 │   │   ├── researcher.py   # Tavily search
-│   │   ├── scraper.py      # Web scraping
-│   │   ├── summarizer.py   # Claude per-doc summary
+│   │   ├── scraper.py      # Web scraping & BM25 retrieval
+│   │   ├── summarizer.py   # Llama-3 per-doc summary
 │   │   ├── reflector.py    # Loop or proceed?
 │   │   └── writer.py       # Final report
 │   ├── graph.py            # LangGraph StateGraph
@@ -112,7 +109,8 @@ research-agent/
 │   └── main.py             # FastAPI + SSE streaming
 ├── frontend/
 │   └── src/
-│       ├── App.jsx         # Main UI
+│       ├── Landing.jsx     # Landing Page UI
+│       ├── App.jsx         # Research UI
 │       └── main.jsx        # Entry point
 ├── requirements.txt
 └── README.md
