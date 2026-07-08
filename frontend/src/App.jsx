@@ -110,7 +110,7 @@ function Navbar({ running, toggleSidebar, toggleTheme, isDark }) {
   );
 }
 
-function Hero({ query, setQuery, onSubmit, running }) {
+function Hero({ query, setQuery, onSubmit, running, error }) {
   return (
     <motion.div 
       className="hero"
@@ -127,6 +127,7 @@ function Hero({ query, setQuery, onSubmit, running }) {
         Ask a question and our AI agents will search the web, analyze sources,
         and generate a comprehensive research report — all in real time.
       </p>
+      {error && <div className="error-banner" style={{marginBottom: '16px'}}><span>⚠</span> {error}</div>}
       <SearchBox query={query} setQuery={setQuery} onSubmit={onSubmit} running={running} />
       <div className="chips-container">
         {EXAMPLE_QUERIES.map((q) => (
@@ -463,7 +464,7 @@ export default function App() {
 
         <AnimatePresence mode="wait">
           {!hasStarted ? (
-            <Hero key="hero" query={query} setQuery={setQuery} onSubmit={runAgent} running={running} />
+            <Hero key="hero" query={query} setQuery={setQuery} onSubmit={runAgent} running={running} error={error} />
           ) : (
             <motion.div 
               key="bento"
