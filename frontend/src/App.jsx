@@ -67,25 +67,43 @@ function BackgroundOrbs() {
 }
 
 function Navbar({ running, toggleSidebar, toggleTheme, isDark }) {
+  const [scrolled, setScrolled] = useState(false);
+  const [themeKey, setThemeKey] = useState(0);
+
+  useEffect(() => {
+    const container = document.querySelector('.main-content');
+    if (!container) return;
+    const onScroll = () => setScrolled(container.scrollTop > 12);
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleThemeToggle = () => {
+    setThemeKey(k => k + 1);
+    toggleTheme();
+  };
+
   return (
-    <nav className="navbar">
+    <nav className={`navbar${scrolled ? ' scrolled' : ''}`}>
       <div className="navbar-brand">
-        <button onClick={toggleSidebar} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', padding: 4 }}>
-          <Menu size={20} />
+        <button className="navbar-icon-btn" onClick={toggleSidebar} aria-label="Toggle sidebar">
+          <Menu size={18} />
         </button>
-        <div className="navbar-logo" style={{ marginLeft: 8 }}>🔬</div>
+        <div className="navbar-logo" style={{ marginLeft: 4 }}>🔬</div>
         <div>
           <div className="navbar-title">NEXUS Research</div>
-          <div className="navbar-subtitle">LangGraph · Groq · Tavily</div>
+          <div className="navbar-tagline">AI-Powered Research</div>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div className="navbar-status">
-          <div className="navbar-dot" style={running ? { background: 'var(--status-running)', boxShadow: '0 0 8px rgba(116,185,255,0.5)' } : {}} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className={`navbar-status-pill${running ? ' running' : ''}`}>
+          <div className="navbar-status-dot" />
           {running ? "Agent running…" : "Ready"}
         </div>
-        <button onClick={toggleTheme} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: 8, color: 'inherit', cursor: 'pointer' }}>
-          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        <button className="navbar-icon-btn" onClick={handleThemeToggle} aria-label="Toggle theme">
+          <span className="theme-icon rotate-in" key={themeKey}>
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          </span>
         </button>
       </div>
     </nav>

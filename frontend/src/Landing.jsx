@@ -8,6 +8,14 @@ const GitHubIcon = () => (
   </svg>
 );
 
+const LinkedInIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
+    <rect width="4" height="12" x="2" y="9"/>
+    <circle cx="4" cy="4" r="2"/>
+  </svg>
+);
+
 const FAQS = [
   { q: "How is NEXUS different from ChatGPT?", a: "ChatGPT answers from its training data, which has a knowledge cutoff. NEXUS actively searches the live web in real time, scrapes actual pages, and synthesizes cited reports — giving you up-to-date, sourced answers instead of memorized ones." },
   { q: "Does it search the live internet?", a: "Yes. Every query triggers a real-time web search. NEXUS retrieves and reads live pages, so your reports always reflect current information rather than outdated training data." },
@@ -62,30 +70,41 @@ function FAQItem({ q, a }) {
 }
 
 export default function Landing({ onLaunch }) {
+  const [scrolled, setScrolled] = useState(false);
+
   const handleScroll = (e, id) => {
     e.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', overflowX: 'hidden' }}>
 
       {/* Navbar */}
-      <nav className="navbar" style={{ position: 'fixed', width: '100%', zIndex: 100 }}>
+      <nav className={`navbar${scrolled ? ' scrolled' : ''}`} style={{ position: 'fixed', width: '100%', zIndex: 100 }}>
         <div className="navbar-brand">
           <div className="navbar-logo">🔬</div>
           <div className="navbar-title">NEXUS <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Research</span></div>
         </div>
-        <div style={{ display: 'flex', gap: '32px', fontSize: '14px', color: 'var(--text-secondary)' }} className="hide-on-mobile">
-          <a href="#features" onClick={(e) => handleScroll(e, 'features')} style={{ color: 'inherit', textDecoration: 'none' }}>Features</a>
-          <a href="#how-it-works" onClick={(e) => handleScroll(e, 'how-it-works')} style={{ color: 'inherit', textDecoration: 'none' }}>How It Works</a>
-          <a href="#faq" onClick={(e) => handleScroll(e, 'faq')} style={{ color: 'inherit', textDecoration: 'none' }}>FAQ</a>
+        <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+          <a href="#features" onClick={(e) => handleScroll(e, 'features')} className="nav-link">Features</a>
+          <a href="#how-it-works" onClick={(e) => handleScroll(e, 'how-it-works')} className="nav-link">How It Works</a>
+          <a href="#faq" onClick={(e) => handleScroll(e, 'faq')} className="nav-link">FAQ</a>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <a href="https://github.com/Saksham-Khanna/nexus-agent" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
+          <a href="https://www.linkedin.com/in/sakshamm-khanna29/" target="_blank" rel="noopener noreferrer" className="github-link" aria-label="LinkedIn">
+            <LinkedInIcon />
+          </a>
+          <a href="https://github.com/Saksham-Khanna/nexus-agent" target="_blank" rel="noopener noreferrer" className="github-link" aria-label="GitHub">
             <GitHubIcon />
           </a>
-          <button className="search-submit" onClick={onLaunch} style={{ position: 'relative', right: 0, bottom: 0 }}>
+          <button className="search-submit cta-btn-shimmer" onClick={onLaunch} style={{ position: 'relative', right: 0, bottom: 0 }}>
             Launch App <ArrowRight size={14} style={{ display: 'inline', marginLeft: 4, verticalAlign: 'middle' }} />
           </button>
         </div>
