@@ -15,7 +15,7 @@ app = FastAPI(title="ResearchAgent API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost:4173"],
+    allow_origins=["*"],  # Allow all origins for production (or specify your Render frontend URL here)
     allow_methods=["*"],
     allow_headers=["*"],
 )
