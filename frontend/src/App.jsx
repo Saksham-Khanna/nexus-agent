@@ -23,35 +23,7 @@ const EXAMPLE_QUERIES = [
   "History of space exploration milestones",
 ];
 
-/* ── Web Audio Synth Sounds ── */
-const playSound = (type) => {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    if (type === "pop") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(600, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.1);
-    } else if (type === "success") {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      osc.frequency.setValueAtTime(554, ctx.currentTime + 0.1); // C#
-      osc.frequency.setValueAtTime(659, ctx.currentTime + 0.2); // E
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.6);
-    }
-  } catch(e) {}
-};
+
 
 /* ══════════════════════════════════════════════
    Components
@@ -331,8 +303,6 @@ export default function App() {
 
   const updateNode = useCallback((name, patch) => {
     setNodes((prev) => {
-      const isDone = patch.status === "done" && prev[name]?.status !== "done";
-      if (isDone) playSound("pop");
       return { ...prev, [name]: { ...(prev[name] || { status: "idle" }), ...patch } };
     });
   }, []);
@@ -394,7 +364,6 @@ export default function App() {
         }
       }
       if (finalReport) {
-        playSound("success");
         saveToHistory(query, finalReport);
       }
     } catch (e) {
