@@ -8,6 +8,7 @@ class SearchResult(TypedDict):
     url: str
     snippet: str
     score: float
+    domain: str
 
 
 class ScrapedDoc(TypedDict):
@@ -21,10 +22,12 @@ class Summary(TypedDict):
     url: str
     title: str
     summary: str
+    domain: str
 
 
 class AgentState(TypedDict):
     query: str
+    mode: str  # "quick" | "deep" | "academic" | "news"
     plan: list[str]
     search_results: Annotated[list[SearchResult], operator.add]
     scraped_docs: Annotated[list[ScrapedDoc], operator.add]

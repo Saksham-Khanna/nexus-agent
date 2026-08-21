@@ -1,6 +1,7 @@
 import asyncio
 from groq import AsyncGroq
 from agent.state import AgentState, Summary
+from agent.utils import MODEL_POWERFUL
 
 client = AsyncGroq()
 
@@ -8,7 +9,10 @@ SYSTEM = """You are a research assistant. Summarize the provided document in 4-5
 Focus on: key findings, important statistics, main arguments, and anything directly relevant to the research query.
 Be factual and precise. Do not add opinions."""
 
-async def _summarize_doc(doc: dict, query: str) -> dict:
+MAX_CONCURRENT = 5
+
+
+async def _summarize_doc(doc: dict, query: str, sem: asyncio.Semaphore) -> dict | None:
     content = doc.get("content", "")
     if not content or len(content) < 50:
         return None
@@ -16,14 +20,15 @@ async def _summarize_doc(doc: dict, query: str) -> dict:
     prompt = f"Research query: {query}\n\nDocument from {doc['url']}:\n{content}"
 
     try:
-        response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": SYSTEM},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-        )
+        async with sem:
+            response = await client.chat.completions.create(
+                model=MODEL_POWERFUL,
+                messages=[
+                    {"role": "system", "content": SYSTEM},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500,
+            )
         return {
             "summary": Summary(
                 url=doc["url"],
@@ -36,15 +41,24 @@ async def _summarize_doc(doc: dict, query: str) -> dict:
         print(f"[Summarizer] Failed to summarize {doc['url']}: {e}")
         return None
 
+
 async def summarizer_node(state: AgentState) -> dict:
     docs = state.get("scraped_docs", [])
     query = state.get("query", "")
     summaries: list[Summary] = []
     total_tokens = 0
 
-    print(f"[Summarizer] Summarizing {len(docs)} documents in parallel...")
+    # Skip docs already summarized in previous loop iterations
+    done_urls = {s["url"] for s in state.get("summaries", [])}
+    pending = [d for d in docs if d.get("success") and d["url"] not in done_urls]
+    skipped = sum(1 for d in docs if d.get("success")) - len(pending)
+    if skipped > 0:
+        print(f"[Summarizer] Skipping {skipped} already-summarized docs")
 
-    tasks = [_summarize_doc(doc, query) for doc in docs if doc.get("success")]
+    print(f"[Summarizer] Summarizing {len(pending)} documents in parallel...")
+
+    sem = asyncio.Semaphore(MAX_CONCURRENT)
+    tasks = [_summarize_doc(doc, query, sem) for doc in pending]
     results = await asyncio.gather(*tasks)
 
     for res in results:
@@ -52,5 +66,5 @@ async def summarizer_node(state: AgentState) -> dict:
             summaries.append(res["summary"])
             total_tokens += res["tokens"]
 
-    print(f"[Summarizer] Created {len(summaries)} summaries")
+    print(f"[Summarizer] Created {len(summaries)} new summaries")
     return {"summaries": summaries, "status": "summarized", "tokens": total_tokens}

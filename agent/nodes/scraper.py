@@ -10,9 +10,10 @@ HEADERS = {
 }
 MAX_CHARS = 4000
 TIMEOUT = 8.0
+MAX_CONCURRENT = 8
 
 def _extract_text(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
         tag.decompose()
     main = soup.find("main") or soup.find("article") or soup.body
@@ -38,11 +39,12 @@ def _bm25_retrieve(query: str, text: str, top_k: int = 5) -> str:
         print(f"[Scraper] BM25 error: {e}")
         return "\n\n".join(paragraphs)[:MAX_CHARS]
 
-async def _scrape_url(client, url: str, r: dict, query: str) -> ScrapedDoc:
+async def _scrape_url(client, url: str, r: dict, query: str, sem: asyncio.Semaphore) -> ScrapedDoc:
     try:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        raw_content = _extract_text(resp.text)
+        async with sem:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            raw_content = _extract_text(resp.text)
         if len(raw_content) < 100:
             raise ValueError("Too little content extracted")
         
@@ -73,7 +75,8 @@ async def scraper_node(state: AgentState) -> dict:
     print(f"[Scraper] Scraping {len(unique_results)} URLs in parallel...")
 
     async with httpx.AsyncClient(timeout=TIMEOUT, headers=HEADERS, follow_redirects=True) as client:
-        tasks = [_scrape_url(client, r["url"], r, query) for r in unique_results]
+        sem = asyncio.Semaphore(MAX_CONCURRENT)
+        tasks = [_scrape_url(client, r["url"], r, query, sem) for r in unique_results]
         docs = await asyncio.gather(*tasks)
 
     docs = list(docs)

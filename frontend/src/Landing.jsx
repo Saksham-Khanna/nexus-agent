@@ -72,9 +72,24 @@ function FAQItem({ q, a }) {
 export default function Landing({ onLaunch }) {
   const [scrolled, setScrolled] = useState(false);
 
-  const handleScroll = (e, id) => {
+  const smoothScrollTo = (e, id) => {
     e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    const el = document.getElementById(id);
+    if (!el) return;
+    const start = window.scrollY;
+    const end = el.getBoundingClientRect().top + start;
+    const duration = 2000;
+    let startTime = null;
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const ease = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      window.scrollTo(0, start + (end - start) * ease);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   };
 
   React.useEffect(() => {
@@ -84,18 +99,19 @@ export default function Landing({ onLaunch }) {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', overflowX: 'hidden', position: 'relative' }}>
+      <div className="landing-bg" />
 
       {/* Navbar */}
       <nav className={`navbar${scrolled ? ' scrolled' : ''}`} style={{ position: 'fixed', width: '100%', zIndex: 100 }}>
-        <div className="navbar-brand">
-          <div className="navbar-logo">🔬</div>
-          <div className="navbar-title">NEXUS <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Research</span></div>
+        <div className="navbar-brand-text" style={{ cursor: 'pointer', marginLeft: '16px' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <span className="nav-logo-nexus">NEXUS</span>
+          <span className="nav-logo-research">RESEARCH</span>
         </div>
         <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-          <a href="#features" onClick={(e) => handleScroll(e, 'features')} className="nav-link">Features</a>
-          <a href="#how-it-works" onClick={(e) => handleScroll(e, 'how-it-works')} className="nav-link">How It Works</a>
-          <a href="#faq" onClick={(e) => handleScroll(e, 'faq')} className="nav-link">FAQ</a>
+          <a href="#features" onClick={(e) => smoothScrollTo(e, 'features')} className="nav-link">Features</a>
+          <a href="#how-it-works" onClick={(e) => smoothScrollTo(e, 'how-it-works')} className="nav-link">How It Works</a>
+          <a href="#faq" onClick={(e) => smoothScrollTo(e, 'faq')} className="nav-link">FAQ</a>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <a href="https://www.linkedin.com/in/sakshamm-khanna29/" target="_blank" rel="noopener noreferrer" className="github-link" aria-label="LinkedIn">
@@ -126,7 +142,7 @@ export default function Landing({ onLaunch }) {
             <button className="search-submit" onClick={onLaunch} style={{ position: 'relative', right: 0, bottom: 0, padding: '14px 28px', fontSize: '15px' }}>
               Launch NEXUS <ArrowRight size={16} style={{ display: 'inline', marginLeft: 8, verticalAlign: 'middle' }} />
             </button>
-            <button onClick={(e) => handleScroll(e, 'features')} style={{ padding: '14px 28px', fontSize: '15px', fontWeight: 600, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button onClick={(e) => smoothScrollTo(e, 'features')} style={{ padding: '14px 28px', fontSize: '15px', fontWeight: 600, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BookOpen size={16} /> View Features
             </button>
           </div>
@@ -174,21 +190,21 @@ export default function Landing({ onLaunch }) {
             The difference between answering<br />and <span style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>actually researching.</span>
           </h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '28px' }}>
           {[
-            { icon: <Activity />, title: "Live Internet Research", desc: "Agents actively browse the live web, pulling in up-to-the-minute data rather than relying on stale training weights." },
-            { icon: <BrainCircuit />, title: "Autonomous Multi-Agent AI", desc: "A coordinated team of six specialized agents: Planner, Researcher, Scraper, Summarizer, Reflector, and Writer." },
-            { icon: <ShieldCheck />, title: "Verified Citations", desc: "Every claim is backed by a linked citation to the original source, ensuring absolute trust and traceability." },
-            { icon: <Zap />, title: "Live Token Streaming", desc: "Watch your report materialize word-by-word in real time. No more staring at a loading spinner for 60 seconds." },
-            { icon: <BookOpen />, title: "Markdown & PDF Reports", desc: "Clean, beautifully formatted reports ready to download as PDF or copy directly into your workflow." },
-            { icon: <Layers />, title: "Self-Correcting Reflection", desc: "Our Reflector agent grades the research quality. If it's not thorough enough, it forces the agents to dig deeper." }
+            { icon: <Activity />, title: "Live Internet Research", desc: "Agents actively browse the live web, pulling in up-to-the-minute data rather than relying on stale training weights.", accent: '#315C45' },
+            { icon: <BrainCircuit />, title: "Autonomous Multi-Agent AI", desc: "A coordinated team of six specialized agents: Planner, Researcher, Scraper, Summarizer, Reflector, and Writer.", accent: '#7A3445' },
+            { icon: <ShieldCheck />, title: "Verified Citations", desc: "Every claim is backed by a linked citation to the original source, ensuring absolute trust and traceability.", accent: '#2D6A8F' },
+            { icon: <Zap />, title: "Live Token Streaming", desc: "Watch your report materialize word-by-word in real time. No more staring at a loading spinner for 60 seconds.", accent: '#8B6914' },
+            { icon: <BookOpen />, title: "Markdown & PDF Reports", desc: "Clean, beautifully formatted reports ready to download as PDF or copy directly into your workflow.", accent: '#5B3D8F' },
+            { icon: <Layers />, title: "Self-Correcting Reflection", desc: "Our Reflector agent grades the research quality. If it's not thorough enough, it forces the agents to dig deeper.", accent: '#315C45' }
           ].map((feature, i) => (
-            <motion.div key={i} whileHover={{ y: -4, transition: { duration: 0.2 } }} className="glass-card" style={{ padding: '32px' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-light)', marginBottom: '24px' }}>
+            <motion.div key={i} whileHover={{ y: -6, transition: { duration: 0.25 } }} className="feature-card" style={{ '--card-accent': feature.accent }}>
+              <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: `${feature.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: feature.accent, marginBottom: '24px', border: `1px solid ${feature.accent}33` }}>
                 {feature.icon}
               </div>
-              <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>{feature.title}</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{feature.desc}</p>
+              <h3 style={{ fontSize: '19px', fontWeight: 700, marginBottom: '12px', color: 'var(--text-primary)' }}>{feature.title}</h3>
+              <p style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>{feature.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -253,16 +269,33 @@ export default function Landing({ onLaunch }) {
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--glass-border)', padding: '48px 24px', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="navbar-logo" style={{ width: 24, height: 24, fontSize: 12 }}>🔬</div>
-            <div className="navbar-title">NEXUS Research</div>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginLeft: '8px' }}>© 2026 NEXUS Research. All rights reserved.</span>
+      <footer className="landing-footer">
+        <div className="footer-inner">
+          <div className="footer-grid">
+            <div className="footer-brand">
+              <span className="footer-brand-name">NEXUS</span>
+              <span className="footer-brand-tagline">AI-Powered Research Platform</span>
+            </div>
+            <div className="footer-col">
+              <span className="footer-col-title">Product</span>
+              <a href="#features" onClick={(e) => smoothScrollTo(e, 'features')}>Features</a>
+              <a href="#how-it-works" onClick={(e) => smoothScrollTo(e, 'how-it-works')}>How It Works</a>
+              <a href="#faq" onClick={(e) => smoothScrollTo(e, 'faq')}>FAQ</a>
+            </div>
+            <div className="footer-col">
+              <span className="footer-col-title">Connect</span>
+              <a href="mailto:khanna.saksham2918@gmail.com">Email</a>
+              <a href="https://www.linkedin.com/in/sakshamm-khanna29/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+              <a href="https://github.com/Saksham-Khanna/nexus-agent" target="_blank" rel="noopener noreferrer">GitHub</a>
+            </div>
           </div>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--status-done)' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} /> ALL SYSTEMS OPERATIONAL
-          </span>
+          <div className="footer-bottom">
+            <span className="footer-copy">© {new Date().getFullYear()} NEXUS Research. Built with multi-agent AI.</span>
+            <span className="footer-status">
+              <span className="footer-status-dot" />
+              All systems operational
+            </span>
+          </div>
         </div>
       </footer>
     </div>
