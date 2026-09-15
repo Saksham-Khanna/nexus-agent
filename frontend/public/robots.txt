@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nexus-agent-pearl.vercel.app/sitemap.xml
