@@ -1,13 +1,17 @@
+import os
 import json
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
+import time
+from collections import defaultdict
 from groq import AsyncGroq
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from typing import Literal
+from pydantic import BaseModel, Field, field_validator
 
 from agent.graph import agent
 from agent.state import AgentState
@@ -17,17 +21,78 @@ groq_client = AsyncGroq()
 
 app = FastAPI(title="ResearchAgent API")
 
+# ── In-memory rate limit + cache (no Redis needed for MVP) ──
+RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "10"))
+RATE_WINDOW = 60
+CACHE_TTL = int(os.getenv("CACHE_TTL_SEC", "3600"))
+_rate_store: dict[str, list[float]] = defaultdict(list)
+_cache_store: dict[str, tuple[float, dict]] = {}  # key -> (ts, payload)
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def check_rate_limit(request: Request):
+    ip = _get_client_ip(request)
+    now = time.time()
+    window_start = now - RATE_WINDOW
+    # prune old
+    _rate_store[ip] = [t for t in _rate_store[ip] if t > window_start]
+    if len(_rate_store[ip]) >= RATE_LIMIT:
+        raise HTTPException(status_code=429, detail=f"Rate limit exceeded: {RATE_LIMIT}/min")
+    _rate_store[ip].append(now)
+
+
+def _cache_key(query: str, mode: str) -> str:
+    return f"{query.strip().lower()}::{mode}"
+
+
+def _get_cached(query: str, mode: str):
+    key = _cache_key(query, mode)
+    entry = _cache_store.get(key)
+    if not entry:
+        return None
+    ts, payload = entry
+    if time.time() - ts > CACHE_TTL:
+        _cache_store.pop(key, None)
+        return None
+    return payload
+
+
+def _set_cached(query: str, mode: str, payload: dict):
+    _cache_store[_cache_key(query, mode)] = (time.time(), payload)
+
+# Restrict CORS — set ALLOWED_ORIGINS env var as comma-separated list in production
+_allowed = os.getenv("ALLOWED_ORIGINS", "https://nexus-agent-pearl.vercel.app,http://localhost:5173,http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _allowed.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 class RunRequest(BaseModel):
-    query: str
-    mode: str = "quick"
+    query: str = Field(..., min_length=5, max_length=500, description="Research query")
+    mode: Literal["quick", "deep", "academic", "news"] = "quick"
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def strip_and_validate(cls, v):
+        if not isinstance(v, str):
+            return v
+        cleaned = v.strip()
+        if len(cleaned) < 5:
+            raise ValueError("Query too short — minimum 5 characters")
+        if len(cleaned) > 500:
+            raise ValueError("Query too long — maximum 500 characters")
+        return cleaned
 
 
 def sse_event(data: dict) -> str:
@@ -225,10 +290,9 @@ async def stream_agent(query: str, mode: str = "quick"):
         yield sse_event({"type": "node_done", "node": "writer"})
 
         # Emit final sources list for source drawer
+        final_sources = []
         if summaries:
-            yield sse_event({
-                "type": "sources_complete",
-                "sources": [
+            final_sources = [
                     {
                         "index": i + 1,
                         "title": s["title"],
@@ -237,8 +301,15 @@ async def stream_agent(query: str, mode: str = "quick"):
                         "summary": s["summary"],
                     }
                     for i, s in enumerate(summaries)
-                ],
+                ]
+            yield sse_event({
+                "type": "sources_complete",
+                "sources": final_sources,
             })
+
+        # Save to cache for next hit
+        if final_report:
+            _set_cached(query, mode, {"report": final_report, "sources": final_sources})
 
         yield sse_event({"type": "done"})
 
@@ -249,20 +320,55 @@ async def stream_agent(query: str, mode: str = "quick"):
 
 
 @app.post("/run")
-async def run_agent(req: RunRequest):
+async def run_agent(req: RunRequest, request: Request):
+    check_rate_limit(request)
+
+    cached = _get_cached(req.query, req.mode)
+    if cached:
+        async def cached_stream():
+            yield sse_event({"type": "start", "query": req.query, "mode": req.mode, "cached": True})
+            for n in ["planner", "researcher", "scraper", "summarizer", "reflector"]:
+                yield sse_event({"type": "node_start", "node": n})
+                yield sse_event({"type": "node_done", "node": n})
+            yield sse_event({"type": "node_start", "node": "writer"})
+            report = cached["report"]
+            for i in range(0, len(report), 80):
+                yield sse_event({"type": "writer_token", "content": report[i:i+80]})
+                await asyncio.sleep(0.015)
+            yield sse_event({"type": "node_output", "node": "writer", "output": {"report": report}})
+            yield sse_event({"type": "node_done", "node": "writer"})
+            yield sse_event({"type": "sources_complete", "sources": cached["sources"]})
+            yield sse_event({"type": "done", "cached": True})
+        return StreamingResponse(
+            cached_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "X-Cache": "HIT",
+            },
+        )
+
     return StreamingResponse(
         stream_agent(req.query, req.mode),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
+            "X-Cache": "MISS",
         },
     )
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "cache_size": len(_cache_store), "rate_limit_per_min": RATE_LIMIT}
+
+
+@app.post("/cache/clear")
+async def clear_cache():
+    _cache_store.clear()
+    return {"status": "cleared"}
 
 
 if __name__ == "__main__":

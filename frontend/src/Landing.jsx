@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Search, BrainCircuit, Activity, BookOpen, Layers, Zap, ShieldCheck, ChevronDown, Globe, FileText, Cpu } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Search, BrainCircuit, Activity, BookOpen, Layers, Zap, ShieldCheck, ChevronDown, Globe, FileText, Cpu, Menu, X } from 'lucide-react';
 
 const GitHubIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -71,14 +71,17 @@ function FAQItem({ q, a }) {
 
 export default function Landing({ onLaunch }) {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const btnRef = useRef(null);
 
   const smoothScrollTo = (e, id) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const el = document.getElementById(id);
     if (!el) return;
     const start = window.scrollY;
     const end = el.getBoundingClientRect().top + start;
-    const duration = 2000;
+    const duration = 1200;
     let startTime = null;
     const step = (timestamp) => {
       if (!startTime) startTime = timestamp;
@@ -92,11 +95,34 @@ export default function Landing({ onLaunch }) {
     requestAnimationFrame(step);
   };
 
-  React.useEffect(() => {
+  const handleMobileNav = (e, id) => {
+    setMobileMenuOpen(false);
+    smoothScrollTo(e, id);
+  };
+
+  useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setMobileMenuOpen(false); };
+    const onClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClickOutside);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClickOutside);
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', overflowX: 'hidden', position: 'relative' }}>
@@ -108,26 +134,65 @@ export default function Landing({ onLaunch }) {
           <span className="nav-logo-nexus">NEXUS</span>
           <span className="nav-logo-research">RESEARCH</span>
         </div>
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+        <div className="navbar-links" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
           <a href="#features" onClick={(e) => smoothScrollTo(e, 'features')} className="nav-link">Features</a>
           <a href="#how-it-works" onClick={(e) => smoothScrollTo(e, 'how-it-works')} className="nav-link">How It Works</a>
           <a href="#faq" onClick={(e) => smoothScrollTo(e, 'faq')} className="nav-link">FAQ</a>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <a href="https://www.linkedin.com/in/sakshamm-khanna29/" target="_blank" rel="noopener noreferrer" className="github-link" aria-label="LinkedIn">
+        <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <a href="https://www.linkedin.com/in/sakshamm-khanna29/" target="_blank" rel="noopener noreferrer" className="github-link landing-desktop-social" aria-label="LinkedIn" title="LinkedIn">
             <LinkedInIcon />
           </a>
-          <a href="https://github.com/Saksham-Khanna/nexus-agent" target="_blank" rel="noopener noreferrer" className="github-link" aria-label="GitHub">
+          <a href="https://github.com/Saksham-Khanna/nexus-agent" target="_blank" rel="noopener noreferrer" className="github-link landing-desktop-social" aria-label="GitHub" title="GitHub">
             <GitHubIcon />
           </a>
-          <button className="search-submit cta-btn-shimmer" onClick={onLaunch} style={{ position: 'relative', right: 0, bottom: 0 }}>
-            Launch App <ArrowRight size={14} style={{ display: 'inline', marginLeft: 4, verticalAlign: 'middle' }} />
+          <button className="search-submit cta-btn-shimmer navbar-cta-btn" onClick={onLaunch}>
+            <span className="cta-btn-text">Launch App</span> <ArrowRight size={14} style={{ display: 'inline', marginLeft: 4, verticalAlign: 'middle' }} />
+          </button>
+          <button ref={btnRef} className="navbar-hamburger" aria-label="Toggle navigation" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}>
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </nav>
 
+      {/* Landing Mobile Drawer */}
+      {mobileMenuOpen && (
+        <>
+          <div className="navbar-mobile-overlay" onClick={() => setMobileMenuOpen(false)} />
+          <div ref={menuRef} className="navbar-mobile-menu">
+            <div className="navbar-mobile-menu-section">
+              <div className="navbar-mobile-menu-label">Navigation</div>
+              <a href="#features" onClick={(e) => handleMobileNav(e, 'features')} className="navbar-mobile-item">
+                <BookOpen size={16} /> Features
+              </a>
+              <a href="#how-it-works" onClick={(e) => handleMobileNav(e, 'how-it-works')} className="navbar-mobile-item">
+                <Cpu size={16} /> How It Works
+              </a>
+              <a href="#faq" onClick={(e) => handleMobileNav(e, 'faq')} className="navbar-mobile-item">
+                <ShieldCheck size={16} /> FAQ
+              </a>
+            </div>
+            <div className="navbar-mobile-menu-divider" />
+            <div className="navbar-mobile-menu-section">
+              <button className="search-submit cta-btn-shimmer" onClick={() => { setMobileMenuOpen(false); onLaunch(); }} style={{ width: '100%', justifyContent: 'center', padding: '12px 18px', fontSize: '14px' }}>
+                Launch NEXUS <ArrowRight size={15} style={{ marginLeft: 6 }} />
+              </button>
+            </div>
+            <div className="navbar-mobile-menu-divider" />
+            <div className="navbar-mobile-socials">
+              <a href="https://www.linkedin.com/in/sakshamm-khanna29/" target="_blank" rel="noopener noreferrer" className="navbar-mobile-social-link">
+                <LinkedInIcon /> LinkedIn
+              </a>
+              <a href="https://github.com/Saksham-Khanna/nexus-agent" target="_blank" rel="noopener noreferrer" className="navbar-mobile-social-link">
+                <GitHubIcon /> GitHub
+              </a>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Hero Section */}
-      <section style={{ paddingTop: '160px', paddingBottom: '120px', maxWidth: '1200px', margin: '0 auto', paddingLeft: '24px', paddingRight: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px', alignItems: 'center' }}>
+      <section className="landing-hero-grid">
         <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
           <div className="hero-badge" style={{ marginBottom: '32px' }}>
             <span className="hero-badge-dot" /> V2.0 · MULTI-AGENT INTELLIGENCE
@@ -190,7 +255,7 @@ export default function Landing({ onLaunch }) {
             The difference between answering<br />and <span style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>actually researching.</span>
           </h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '28px' }}>
+        <div className="landing-features-grid">
           {[
             { icon: <Activity />, title: "Live Internet Research", desc: "Agents actively browse the live web, pulling in up-to-the-minute data rather than relying on stale training weights.", accent: '#315C45' },
             { icon: <BrainCircuit />, title: "Autonomous Multi-Agent AI", desc: "A coordinated team of six specialized agents: Planner, Researcher, Scraper, Summarizer, Reflector, and Writer.", accent: '#7A3445' },
